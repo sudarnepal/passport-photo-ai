@@ -1,10 +1,8 @@
-streamlit
-opencv-python-headless
-numpy
+streamlit==1.57.0
+opencv-python-headless==4.8.1.78
+numpy==1.26.4
 Pillow
-mediapipe-silicon; sys_platform == "darwin"
-mediapipe; sys_platform != "darwin"
-rawpy
+mediapipe==0.10.14
 rembg[cpu]
 reportlab
 piexif
