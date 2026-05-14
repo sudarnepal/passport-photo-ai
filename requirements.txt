@@ -2,7 +2,8 @@ streamlit
 opencv-python-headless
 numpy
 Pillow
-mediapipe
+mediapipe-silicon; sys_platform == "darwin"
+mediapipe; sys_platform != "darwin"
 rawpy
 rembg[cpu]
 reportlab
