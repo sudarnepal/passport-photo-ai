@@ -1,0 +1,10 @@
+streamlit
+opencv-python-headless
+numpy
+Pillow
+mediapipe
+rawpy
+rembg[cpu]
+reportlab
+piexif
+python-dotenv
