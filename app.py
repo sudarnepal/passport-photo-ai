@@ -271,6 +271,30 @@ for k, v in [("crop_applied", False), ("last_file", None)]:
 with st.sidebar:
     st.markdown("## 📸 Photo Express Cary")
     st.markdown('<hr class="section-rule">', unsafe_allow_html=True)
+
+    st.markdown("### Passport Type")
+    passport_type = st.radio(
+        "Passport Type",
+        ["🇺🇸 US Passport", "🇨🇦 Canadian Passport"],
+        label_visibility="collapsed",
+    )
+    is_canadian = passport_type == "🇨🇦 Canadian Passport"
+
+    # Specs info box
+    if is_canadian:
+        st.markdown(
+            '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
+            'padding:8px 12px;font-size:11px;color:#166534;margin-top:4px;">'
+            '🇨🇦 50×70 mm · Head 31–36 mm · Extra 20 mm white space above head</div>',
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;'
+            'padding:8px 12px;font-size:11px;color:#1e40af;margin-top:4px;">'
+            '🇺🇸 2×2 inch (51×51 mm) · Head 1–1⅜ inch</div>',
+            unsafe_allow_html=True)
+
+    st.markdown('<hr class="section-rule">', unsafe_allow_html=True)
     st.markdown("### Output Size")
     # 1 = 200px, 10 = 1800px, evenly spaced
     size_levels = {1:200, 2:400, 3:600, 4:700, 5:800, 6:1000, 7:1200, 8:1400, 9:1600, 10:1800}
@@ -282,11 +306,21 @@ with st.sidebar:
         size_level = st.number_input("ql_num", 1, 10, int(size_level), 1,
                                      label_visibility="collapsed", key="ql_num")
     final_size = size_levels[int(size_level)]
+    # Canadian: 50x70mm ratio = 5:7, so height = final_size * 7/5
+    if is_canadian:
+        out_w = final_size
+        out_h = int(final_size * 7 / 5)
+        dims_label = f"{final_size} × {out_h} px (50×70 mm)"
+    else:
+        out_w = final_size
+        out_h = final_size
+        dims_label = f"{final_size} × {final_size} px (2×2 inch)"
+
     st.markdown(
         f'<div style="text-align:center;background:#f0f6ff;border:1px solid #bfdbfe;' +
         f'border-radius:6px;padding:5px;margin-top:4px;">' +
         f'<span style="font-weight:700;color:#2563eb;font-size:1rem;">Level {size_level}</span>' +
-        f'<span style="color:#6b7280;font-size:0.8rem;"> · {final_size} × {final_size} px</span></div>',
+        f'<span style="color:#6b7280;font-size:0.8rem;"> · {dims_label}</span></div>',
         unsafe_allow_html=True)
     st.markdown('<hr class="section-rule">', unsafe_allow_html=True)
     st.markdown("### Enhancements")
@@ -510,15 +544,24 @@ with col3:
         fsz = st.session_state["confirmed_sz"]
         frt = st.session_state["confirmed_rot"]
 
-        passport_np = apply_crop_and_rotate(original_np, fx, fy, fsz, frt, final_size)
+        # Crop square from original at full res
+        passport_np = apply_crop_and_rotate(original_np, fx, fy, fsz, frt, out_w)
 
         if do_bg_remove:
             passport_np = np.array(remove_background(Image.fromarray(passport_np)))
 
         # Adjustments (exposure, shadows, contrast) update live on every slider move
         adjusted = apply_adjustments(passport_np, exposure_val, shadow_val, contrast_val)
+        passport_np = adjusted.astype(np.uint8)
 
-        passport_np  = adjusted.astype(np.uint8)
+        # Canadian passport: add 20mm white space above head
+        # 50x70mm total, 20mm top margin = 20/70 = ~28.6% of total height
+        if is_canadian:
+            top_margin = int(out_h * 20 / 70)
+            canvas = np.full((out_h, out_w, 3), 255, dtype=np.uint8)
+            canvas[top_margin:top_margin + out_w, :] = passport_np
+            passport_np = canvas
+
         passport_pil = Image.fromarray(passport_np)
         if do_strip_exif:
             passport_pil = strip_exif(passport_pil)
@@ -561,7 +604,8 @@ with col3:
                 st.caption(f"Metadata embedding skipped: {e}")
 
         st.image(passport_pil, use_container_width=True)
-        st.markdown('<p class="img-label">2 × 2 inch · 51 × 51 mm</p>', unsafe_allow_html=True)
+        label = "50 × 70 mm · Canadian Passport" if is_canadian else "2 × 2 inch · 51 × 51 mm · US Passport"
+        st.markdown(f'<p class="img-label">{label}</p>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
 
@@ -588,7 +632,7 @@ with col3:
 
         st.markdown(
             f'<div class="stat-row">'
-            f'<span>{final_size}×{final_size} px</span>'
+            f'<span>{out_w}×{out_h} px</span>'
             f'<span>{size_str}</span>'
             f'<span>EXIF {"stripped" if do_strip_exif else "kept"}</span></div>',
             unsafe_allow_html=True)
